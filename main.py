@@ -1,3 +1,6 @@
+from pathlib import Path
+import stat
+
 AWS_REGIONS = [
     'us-east-2',
     'us-east-1',
@@ -25,38 +28,60 @@ AWS_REGIONS = [
 ]
 
 POSTGRES_BACKUP_SCRIPT_TEMPLATE = """
-cd /root/backup
+#!/bin/sh
+cd {backuper_directory}
 MOMENT="$(date +%H%M%S)"
 YEAR="$(date +%Y)"
 MONTH="$(date +%m)"
 DAY="$(date +%d)"
-PGPASSWORD={} pg_dump -h {} -p {} -U {} {} > /root/backup/{}-$MOMENT.sql
-
-AWS_ACCESS_KEY_ID={} AWS_SECRET_ACCESS_KEY={} AWS_DEFAULT_REGION={} aws s3 cp /root/backup/{}-$MOMENT.sql s3://{}/$YEAR/$MONTH/$DAY/
+FILENAME={project_name}-$MOMENT.sql
+PGPASSWORD={postgres_password} pg_dump -h {postgres_host} -p {postgres_port} -U {postgres_user} {postgres_db} > {project_path}/$FILENAME
+AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws s3 cp {project_path}/$FILENAME s3://{bucket_name}/$YEAR/$MONTH/$DAY/
 rm *.sql
 """
 
+def prepare_dirs(project_path: str):
+    if project_path.exists():
+        print(f'{project_path} already exists')
+    else:
+        project_path.mkdir(exist_ok=False)
+        return project_path
 
 def do():
+    current_path = Path().absolute()
+    if current_path.parts[-1] != 'Backuper':
+        print("Must be launched from within 'Backuper' directory")
+        return
     project_name = input('Enter project name: ')
-    while (region := input('Enter AWS region: ')) not in AWS_REGIONS:
-        print('Invalid region')
-    bucket_name = input('Enter S3 bucket name: ')
-    access_key_id = input('Enter access key ID: ')
-    secret_access_key = input('Enter secret access key ID: ')
-    postgres_host = input('Enter db host: ')
-    postgres_port = input('Enter db port: ')
-    postgres_user = input('Enter db user: ')
-    postgres_password = input('Enter db password: ')
-    postgres_db = input('Enter db name: ')
+    if (project_path := prepare_dirs(current_path / project_name)) is not None:
+        while (region := input('Enter AWS region: ')) not in AWS_REGIONS:
+            print('Invalid region')
+        bucket_name = input('Enter S3 bucket name: ')
+        access_key_id = input('Enter access key ID: ')
+        secret_access_key = input('Enter secret access key ID: ')
+        postgres_host = input('Enter db host: ')
+        postgres_port = input('Enter db port: ')
+        postgres_user = input('Enter db user: ')
+        postgres_password = input('Enter db password: ')
+        postgres_db = input('Enter db name: ')
 
-    preview = POSTGRES_BACKUP_SCRIPT_TEMPLATE.format(postgres_password, postgres_host, postgres_port, postgres_user,
-                                                     postgres_db, project_name, access_key_id, secret_access_key,
-                                                     region, project_name, bucket_name)
-    print(preview)
+        script = POSTGRES_BACKUP_SCRIPT_TEMPLATE.format(
+            project_path=project_path,
+            project_name=project_name, 
+            postgres_password=postgres_password, 
+            postgres_host=postgres_host, 
+            postgres_port=postgres_port, 
+            postgres_user=postgres_user,
+            postgres_db=postgres_db, 
+            access_key_id=access_key_id, 
+            secret_access_key=secret_access_key, 
+            region=region, 
+            bucket_name=bucket_name)
+        script_path = project_path / 'do_db_backup.sh'
+        script_path.write_text(script)
+        script_path.chmod(script_path.stat().st_mode | stat.S_IEXEC)
+        print(f'{script_path} successfully created. Now you can add it to your cron.')
 
 
 if __name__ == '__main__':
     do()
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
