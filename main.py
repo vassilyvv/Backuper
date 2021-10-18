@@ -66,7 +66,7 @@ def do():
         postgres_db = input('Enter db name: ')
 
         script = POSTGRES_BACKUP_SCRIPT_TEMPLATE.format(
-            project_path=project_path,
+            backuper_directory=current_path,
             project_name=project_name, 
             postgres_password=postgres_password, 
             postgres_host=postgres_host, 
