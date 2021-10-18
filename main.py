@@ -35,8 +35,8 @@ YEAR="$(date +%Y)"
 MONTH="$(date +%m)"
 DAY="$(date +%d)"
 FILENAME={project_name}-$MOMENT.sql
-PGPASSWORD={postgres_password} pg_dump -h {postgres_host} -p {postgres_port} -U {postgres_user} {postgres_db} > {project_path}/$FILENAME
-AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws s3 cp {project_path}/$FILENAME s3://{bucket_name}/$YEAR/$MONTH/$DAY/
+PGPASSWORD={postgres_password} pg_dump -h {postgres_host} -p {postgres_port} -U {postgres_user} {postgres_db} > {backuper_directory}/{project_name}/$FILENAME
+AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws s3 cp {backuper_directory}/{project_name}/$FILENAME s3://{bucket_name}/$YEAR/$MONTH/$DAY/
 rm *.sql
 """
 
